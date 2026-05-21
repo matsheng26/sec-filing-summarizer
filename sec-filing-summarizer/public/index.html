@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEC Filing Summarizer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f5f5f3;
+      --bg-tertiary: #eeede8;
+      --text-primary: #1a1a18;
+      --text-secondary: #6b6b67;
+      --border: rgba(0,0,0,0.12);
+      --border-md: rgba(0,0,0,0.22);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a;
+        --bg-secondary: #252523;
+        --bg-tertiary: #2e2e2b;
+        --text-primary: #e8e8e3;
+        --text-secondary: #999992;
+        --border: rgba(255,255,255,0.1);
+        --border-md: rgba(255,255,255,0.2);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; }
+    .header h1 {
+      font-size: 24px; font-weight: 500; letter-spacing: -0.3px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .header h1 i { font-size: 22px; }
+    .header p { font-size: 14px; color: var(--text-secondary); margin-top: 6px; line-height: 1.6; }
+
+    .search-card {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .search-row { display: flex; gap: 10px; }
+
+    input[type="text"], select, button {
+      font-family: inherit;
+      font-size: 14px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-md);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      outline: none;
+      height: 38px;
+      padding: 0 12px;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: #378ADD;
+      box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+    }
+
+    #ticker { flex: 1; font-size: 15px; letter-spacing: 0.5px; }
+    #filingType { width: 145px; cursor: pointer; }
+
+    button {
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 18px;
+      background: var(--text-primary);
+      color: var(--bg);
+      border-color: transparent;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    button:hover { opacity: 0.85; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .result-card {
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .result-header {
+      margin-bottom: 1rem; padding-bottom: 1rem;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .company-name { font-size: 20px; font-weight: 500; }
+    .meta-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .badge { font-size: 12px; padding: 3px 10px; border-radius: var(--radius-md); font-weight: 500; }
+    .badge-ticker { background: #E6F1FB; color: #0C447C; }
+    .badge-type  { background: #EAF3DE; color: #27500A; }
+    .badge-date  { background: var(--bg-secondary); color: var(--text-secondary); font-weight: 400; }
+
+    @media (prefers-color-scheme: dark) {
+      .badge-ticker { background: #042C53; color: #85B7EB; }
+      .badge-type   { background: #173404; color: #C0DD97; }
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px; margin-bottom: 1.25rem;
+    }
+    .metric-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px 14px; }
+    .metric-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+    .metric-value { font-size: 18px; font-weight: 500; }
+    .metric-change { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .section-block { margin-bottom: 1.25rem; }
+    .section-title {
+      font-size: 11px; font-weight: 500; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .section-body { font-size: 14px; line-height: 1.75; }
+
+    .risk-list { list-style: none; }
+    .risk-item {
+      font-size: 14px; line-height: 1.6;
+      padding: 7px 0; border-bottom: 0.5px solid var(--border);
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .risk-item:last-child { border-bottom: none; }
+    .risk-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #D85A30; margin-top: 8px; flex-shrink: 0;
+    }
+
+    .outlook-box {
+      background: #EAF3DE; border-radius: var(--radius-md);
+      padding: 12px 14px; font-size: 14px; color: #27500A; line-height: 1.75;
+    }
+    @media (prefers-color-scheme: dark) {
+      .outlook-box { background: #173404; color: #C0DD97; }
+    }
+
+    .loading-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 3rem; gap: 16px;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--text-primary);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: var(--text-secondary); }
+
+    .error-box {
+      background: #FCEBEB; border-radius: var(--radius-md);
+      padding: 12px 14px; font-size: 14px; color: #791F1F;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    @media (prefers-color-scheme: dark) {
+      .error-box { background: #501313; color: #F7C1C1; }
+    }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1rem;
+      color: var(--text-secondary); background: var(--bg);
+      border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+    }
+    .empty-icon { font-size: 44px; opacity: 0.25; display: block; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    .source-link {
+      font-size: 12px; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 4px;
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 0.5px solid var(--border);
+    }
+    .source-link a { color: #185FA5; text-decoration: none; }
+    .source-link a:hover { text-decoration: underline; }
+
+    @media (max-width: 520px) {
+      .search-row { flex-direction: column; }
+      #filingType { width: 100%; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="ti ti-file-analytics"></i> SEC Filing Summarizer</h1>
+      <p>Enter a ticker symbol to get an AI-powered summary of the company's latest SEC filing, including key financials, risks, and outlook.</p>
+    </div>
+
+    <div class="search-card">
+      <div class="search-row">
+        <input type="text" id="ticker" placeholder="e.g. AAPL, MSFT, TSLA" maxlength="10" />
+        <select id="filingType">
+          <option value="10-K">10-K (annual)</option>
+          <option value="10-Q">10-Q (quarterly)</option>
+          <option value="8-K">8-K (current)</option>
+        </select>
+        <button id="searchBtn"><i class="ti ti-search"></i> Summarize</button>
+      </div>
+    </div>
+
+    <div id="output">
+      <div class="empty-state">
+        <i class="ti ti-building-bank empty-icon"></i>
+        <p>Enter a ticker above to fetch and summarize<br>the latest SEC filing for that company.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('searchBtn');
+      var tickerEl = document.getElementById('ticker');
+      var output = document.getElementById('output');
+
+      btn.addEventListener('click', fetchFiling);
+      tickerEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') fetchFiling(); });
+
+      function setLoading(on) {
+        btn.disabled = on;
+        if (on) output.innerHTML = '<div class="loading-state"><div class="spinner"></div><p class="loading-text">Fetching and summarizing SEC filing\u2026</p></div>';
+      }
+
+      function showError(msg) {
+        output.innerHTML = '<div class="error-box"><i class="ti ti-alert-circle" style="font-size:18px;flex-shrink:0;margin-top:1px;"></i><span>' + msg + '</span></div>';
+      }
+
+      async function fetchFiling() {
+        var ticker = tickerEl.value.trim().toUpperCase();
+        if (!ticker) { tickerEl.focus(); return; }
+        var filingType = document.getElementById('filingType').value;
+        setLoading(true);
+
+        try {
+          var res = await fetch('/api/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticker, filingType })
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Server error ' + res.status);
+          renderFiling(data.filing);
+        } catch (err) {
+          showError(err.message || 'Something went wrong. Please try again.');
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function renderFiling(f) {
+        var metricsHtml = '';
+        if (f.metrics && f.metrics.length) {
+          metricsHtml = '<div class="metrics-grid">' +
+            f.metrics.map(function (m) {
+              return '<div class="metric-card"><div class="metric-label">' + m.label + '</div><div class="metric-value">' + m.value + '</div><div class="metric-change">' + (m.change || '') + '</div></div>';
+            }).join('') + '</div>';
+        }
+
+        var risksHtml = '';
+        if (f.risks && f.risks.length) {
+          risksHtml = '<div class="section-block"><div class="section-title"><i class="ti ti-alert-triangle"></i> Key risk factors</div><ul class="risk-list">' +
+            f.risks.map(function (r) { return '<li class="risk-item"><span class="risk-dot"></span><span>' + r + '</span></li>'; }).join('') + '</ul></div>';
+        }
+
+        var outlookHtml = f.outlook ? '<div class="section-block"><div class="section-title"><i class="ti ti-telescope"></i> Outlook &amp; guidance</div><div class="outlook-box">' + f.outlook + '</div></div>' : '';
+        var sourceHtml = f.filingUrl ? '<div class="source-link"><i class="ti ti-external-link"></i> Source: <a href="' + f.filingUrl + '" target="_blank">SEC EDGAR filing</a></div>' : '';
+
+        output.innerHTML =
+          '<div class="result-card">' +
+            '<div class="result-header"><div class="company-name">' + (f.company || f.ticker) + '</div>' +
+            '<div class="meta-row">' +
+              '<span class="badge badge-ticker">' + f.ticker + '</span>' +
+              '<span class="badge badge-type">' + f.filingType + '</span>' +
+              '<span class="badge badge-date">' + f.filingDate + (f.period ? ' \u00b7 ' + f.period : '') + '</span>' +
+            '</div></div>' +
+            metricsHtml +
+            '<div class="section-block"><div class="section-title"><i class="ti ti-building-skyscraper"></i> Business overview</div><div class="section-body">' + (f.businessOverview || 'N/A') + '</div></div>' +
+            '<div class="section-block"><div class="section-title"><i class="ti ti-chart-bar"></i> Key highlights</div><div class="section-body">' + (f.keyHighlights || 'N/A') + '</div></div>' +
+            risksHtml + outlookHtml + sourceHtml +
+          '</div>';
+      }
+    })();
+  </script>
+</body>
+</html>
